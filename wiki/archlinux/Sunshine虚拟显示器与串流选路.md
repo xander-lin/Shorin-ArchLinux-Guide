@@ -5,6 +5,7 @@
 - [二、主机没有显示器：用 EDID 伪造一台](#二主机没有显示器用-edid-伪造一台)
 - [三、画面有了但卡：把串流钉到有线链路](#三画面有了但卡把串流钉到有线链路)
 - [四、排查顺序](#四排查顺序)
+- [附录：一份现成的 EDID](#附录一份现成的-edid)
 
 ---
 
@@ -80,17 +81,9 @@ sudo chmod 644 /usr/lib/firmware/edid/virtual-display
 
 这样伪造出来的"显示器"，分辨率和刷新率与你提取时用的那台完全一致，兼容性最好。
 
-**方式二：用现成的 EDID 十六进制数据生成**
+**方式二：使用一份现成的 4K@60Hz EDID**
 
-没有第二台显示器时，可以直接写入一份公开的 EDID 数据（下面这份是 4K@60Hz 的示例）：
-
-```bash
-sudo mkdir -p /usr/lib/firmware/edid
-echo "00ffffffffffff000843040199999999011c0103804f00783eee91a3544c99260f5054bfef80d1c0d1e8d1fc950090408180814081c040d000a0f0703e803020350058c31000001a000000fc004844502d563130340a20202020000000ff0064656d6f7365742d310a203020000000fd0018900fde3c000a2020202020200158020356425e04051013141f2021222748494a4b4c5d5e5f606162636465666768696a6be200d5e305c00023097f0783010000e50f00000c006e030c00100038782000800102030467d85dc401788801e606050169694f023a801871382d40582c250058c31000001e011d8018711c1620582c250058c31000009e000000000016" | xxd -r -p | sudo tee /usr/lib/firmware/edid/virtual-display > /dev/null
-sudo chmod 644 /usr/lib/firmware/edid/virtual-display
-```
-
-> 这条命令做的事：把一串十六进制文本还原成二进制文件。`xxd -r -p` 就是"把十六进制文本还原成二进制"。
+手上没有第二台显示器可用时，可以直接使用[附录](#附录一份现成的-edid)里那份演示 EDID；写入命令和自查方法都放在附录，避免正文被一大串十六进制数据占据。
 
 ### 第 3 步：把固件打进 initramfs
 
@@ -232,3 +225,34 @@ grep '^1\\localaddress=' "$HOME/.config/Moonlight Game Streaming Project/Moonlig
    改完重启验证，有效再改下一处。同时改三处，出问题时无法判断是哪一处造成的。
 
 相关：[KVM虚拟机·远程桌面](KVM虚拟机.md#sunshinemoonlight)（虚拟机内串流）｜[显卡切换](显卡切换.md)（多显卡机器上固定用哪块卡）
+
+---
+
+## 附录：一份现成的 EDID
+
+<details>
+<summary>[展开/收起] 4K@60Hz 演示 EDID（256 字节）</summary>
+
+这份数据用 `edid-decode` 解出来是：产品名 `HDP-V104`、序列号 `demoset-1`、首选时序 3840×2160@59.98 Hz，另外带一组 1080p / 1080i 模式。
+
+它是**合成的演示数据**：厂商 ID 和序列号都不是真实设备，也不是从哪台显示器上提取的。所以：
+
+- 只在你没有第二台显示器、无法用「方式一」提取时再用它；
+- 它固定提供 4K@60 时序，弱核显或老接口不一定带得动；需要其他分辨率请换成自己的 EDID。
+
+```bash
+sudo mkdir -p /usr/lib/firmware/edid
+echo "00ffffffffffff000843040199999999011c0103804f00783eee91a3544c99260f5054bfef80d1c0d1e8d1fc950090408180814081c040d000a0f0703e803020350058c31000001a000000fc004844502d563130340a20202020000000ff0064656d6f7365742d310a203020000000fd0018900fde3c000a2020202020200158020356425e04051013141f2021222748494a4b4c5d5e5f606162636465666768696a6be200d5e305c00023097f0783010000e50f00000c006e030c00100038782000800102030467d85dc401788801e606050169694f023a801871382d40582c250058c31000001e011d8018711c1620582c250058c31000009e000000000016" | xxd -r -p | sudo tee /usr/lib/firmware/edid/virtual-display > /dev/null
+sudo chmod 644 /usr/lib/firmware/edid/virtual-display
+```
+
+写入后建议先自查一遍，确认数据能被正确解析（`edid-decode` 需要单独安装）：
+
+```bash
+sudo pacman -S edid-decode
+edid-decode /usr/lib/firmware/edid/virtual-display
+```
+
+输出里能看到 `Display Product Name: 'HDP-V104'`、`3840x2160 59.98 Hz` 以及有效的 `Checksum`，就说明这份 EDID 是完好的。
+
+</details>
